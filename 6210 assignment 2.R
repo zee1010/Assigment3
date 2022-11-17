@@ -5,15 +5,11 @@
 
 #install tidyverse package, if needed, then load.
 #install.packages("tidyverse")
-library(tidyverse)
+library(tidyverse) 
 
 #To install randomForest package, if needed and then load
 #install.packages("randomForest")
 library(randomForest)
-
-#Lisa has been here 
-
-
 
 #install.packages("rentrez")
 library(rentrez)
@@ -37,67 +33,98 @@ library(ggplot2)
 #BiocManager::install("Biostrings")
 library(Biostrings)
 
+#install.packages("remotes")
+remotes::install_github("gschofl/rentrez")
+
+# install.packages("caret")
+library(caret)
+
 ####Data Acquisition
 
-#Look for searchable fields in nuccore database to determine which ones will be used for analysis
-entrez_db_searchable(db = "nuccore")
+# #Look for searchable fields in nuccore database to determine which ones will be used for analysis
+# entrez_db_searchable(db = "nuccore")
+# 
+# #Create function to fetch fasta files required for analysis from Entrez_fuction script used in class
+# FetchFastaFiles <- function(searchTerm, seqsPerFile = 100, fastaFileName) {
+#   
+# # This function will fetch FASTA files from NCBI nuccore based on a provided search term.
+# # searchTerm = character vector containing Entrez search term
+# # seqsPerFile = number of sequences to write to each FASTA file
+# # fastaFileName = character vector containing name you want to give to the FASTA files you are fetching
+#   
+# # Initial search for finding maximum number of hits
+# search1 <- entrez_search(db = "nuccore", term = searchTerm)
+# # Second search for obtaining max number of hits and their IDs
+# search2 <- entrez_search(db = "nuccore", term = searchTerm, retmax = search1$count, use_history = T)
+#   
+# # Fetch the sequences in FASTA format using the web_history object.
+# for (start_rec in seq(0, search2$retmax, seqsPerFile)) {
+#     fname <- paste(fastaFileName, start_rec, ".fasta", sep = "")
+#     recs <- entrez_fetch(db = "nuccore", web_history = search2$web_history, rettype = "fasta", retstart = start_rec, retmax = seqsPerFile)
+#     write(recs, fname)
+#     print(paste("Wrote records to ", fname, sep = ""))
+#   }
+#   
+# return(search2)
+#   
+# }
+# 
+# ##Using the  function to fetch fasta files
+# #Searching for Muridae (common and scientific names using ORGN] and gene CytB in nuccore database (nucleotide database). The length of cytB gene sequence length is restricted to 600-1000bp to prevent whole mitochondrial genomes from being incorporated. Each fasta file will contain 1000 sequences
+# Muridae_cytB<-FetchFastaFiles("Muridae[ORGN] AND CytB[Gene] AND 600:1000[SLEN]", 1000, "Muridae_cytB")
+# 
+# #Searching for Muridae (common and scientific names using ORGN] and gene COI in nuccore database (nucleotide database). The length of COI gene sequence length is restricted to 600-700bp to prevent whole mitochondrial genomes from being incorporated. Each fasta file will contain 1000 sequences
+# Muridae_COI<-FetchFastaFiles("Muridae[ORGN] AND COI[Gene] AND 400:700[SLEN]", 1000, "Muridae_COI")
+# 
+# ###Creating a function merge the all the fasta files together using Entrez_fuction script used in class ito one dataframe
+# MergeFastaFiles <- function(filePattern) {
+#   
+# # This function merges multiple FASTA files into one dataframe.
+#   
+# # filePattern = Character vector containing common pattern in FASTA file names
+#   
+# # Read the FASTA files in.
+# fastaFiles <- list.files(pattern = filePattern)
+# l_fastaFiles <- lapply(fastaFiles, readDNAStringSet)
+#   
+# # Convert them into dataframes.
+# l_dfFastaFiles <- lapply(l_fastaFiles, function(x) data.frame(Title = names(x), Sequence = paste(x) ))
+#   
+# # Combine the list of dataframes into one dataframe.
+# Muridae_COIs <- do.call("rbind", l_dfFastaFiles)
+#   
+# return(Muridae_COIs)
+#   
+# }
+# 
+# #Creating dataframes 
+# Muridae_COI<-MergeFastaFiles("Muridae_COI*")
+# Muridae_cytB<-MergeFastaFiles("Muridae_cytB*")
 
-#Create function to fetch fasta files required for analysis from Entrez_fuction script used in class
-FetchFastaFiles <- function(searchTerm, seqsPerFile = 100, fastaFileName) {
-  
-# This function will fetch FASTA files from NCBI nuccore based on a provided search term.
-# searchTerm = character vector containing Entrez search term
-# seqsPerFile = number of sequences to write to each FASTA file
-# fastaFileName = character vector containing name you want to give to the FASTA files you are fetching
-  
-# Initial search for finding maximum number of hits
-search1 <- entrez_search(db = "nuccore", term = searchTerm)
-# Second search for obtaining max number of hits and their IDs
-search2 <- entrez_search(db = "nuccore", term = searchTerm, retmax = search1$count, use_history = T)
-  
-# Fetch the sequences in FASTA format using the web_history object.
-for (start_rec in seq(0, search2$retmax, seqsPerFile)) {
-    fname <- paste(fastaFileName, start_rec, ".fasta", sep = "")
-    recs <- entrez_fetch(db = "nuccore", web_history = search2$web_history, rettype = "fasta", retstart = start_rec, retmax = seqsPerFile)
-    write(recs, fname)
-    print(paste("Wrote records to ", fname, sep = ""))
-  }
-  
-return(search2)
-  
-}
+# Search for CytB gene from nuccore database 
+cytb_search <- reutils::esearch(db="nuccore",term = "Muridae[ORGN] AND CytB[Gene] AND 600:1000[SLEN]", usehistory = T) 
 
-##Using the  function to fetch fasta files
-#Searching for Muridae (common and scientific names using ORGN] and gene CytB in nuccore database (nucleotide database). The length of cytB gene sequence length is restricted to 600-1000bp to prevent whole mitochondrial genomes from being incorporated. Each fasta file will contain 1000 sequences
-Muridae_cytB<-FetchFastaFiles("Muridae[ORGN] AND CytB[Gene] AND 600:1000[SLEN]", 1000, "Muridae_cytB")
+# Fetch data into fasta file.
+cytb_fetch <- reutils::efetch(cytb_search, db="nuccore", rettype="fasta", retmode = "text", outfile = "cytb.txt")  
 
-#Searching for Muridae (common and scientific names using ORGN] and gene COI in nuccore database (nucleotide database). The length of COI gene sequence length is restricted to 600-700bp to prevent whole mitochondrial genomes from being incorporated. Each fasta file will contain 1000 sequences
-Muridae_COI<-FetchFastaFiles("Muridae[ORGN] AND COI[Gene] AND 400:700[SLEN]", 1000, "Muridae_COI")
+# Read DNA String Set from fasta file 
+stringSet1 <- readDNAStringSet(cytb_fetch, format="fasta")
 
-###Creating a function merge the all the fasta files together using Entrez_fuction script used in class ito one dataframe
-MergeFastaFiles <- function(filePattern) {
-  
-# This function merges multiple FASTA files into one dataframe.
-  
-# filePattern = Character vector containing common pattern in FASTA file names
-  
-# Read the FASTA files in.
-fastaFiles <- list.files(pattern = filePattern)
-l_fastaFiles <- lapply(fastaFiles, readDNAStringSet)
-  
-# Convert them into dataframes.
-l_dfFastaFiles <- lapply(l_fastaFiles, function(x) data.frame(Title = names(x), Sequence = paste(x) ))
-  
-# Combine the list of dataframes into one dataframe.
-Muridae_COIs <- do.call("rbind", l_dfFastaFiles)
-  
-return(Muridae_COIs)
-  
-}
+# Creating dataframe 
+Muridae_cytB <- data.frame(Title=names(stringSet1), Sequence=paste(stringSet1))
 
-#Creating dataframes 
-Muridae_COI<-MergeFastaFiles("Muridae_COI*")
-Muridae_cytB<-MergeFastaFiles("Muridae_cytB*")
+# Search for COI gene from nuccore database 
+COI_search <- reutils::esearch(db="nuccore",term = "Muridae[ORGN] AND COI[Gene] AND 400:700[SLEN]", usehistory = T) 
+
+# Fetch data into fasta file.
+COI_fetch <- reutils::efetch(COI_search, db="nuccore", rettype="fasta", retmode = "text", outfile = "COI.txt")  
+
+# Read DNA String Set from fasta file 
+stringSet2 <- readDNAStringSet(COI_fetch, format="fasta")
+
+# Creating dataframe 
+Muridae_COI <- data.frame(Title=names(stringSet2), Sequence=paste(stringSet2))
+
 
 #cleaning up species names so they are more easily readable using stringr package and the function word(). This constricts the title to only species name, which are specified by 2L and 3L and a new column called species name is created
 Muridae_COI$Species_name <- word(Muridae_COI$Title, 2L, 3L)
@@ -242,23 +269,43 @@ sort(table(Muridae_all$Species_name))
 #Change sequence data back to character so it is easier to apply tidyverse functions
 Muridae_all$Sequence2<- as.character(Muridae_all$Sequence2)
 
-#The maximum sample size is 1801 as there are only 1801 sequences for COI. We will take 25% of the sample to be the validation dataset. This will separate from our training dataset.
-.25*1801
-#We will take 450 samples from each data set which will be used as our validation dataset later on. To make our script reproducible we will be setting seed.
+# #The maximum sample size is 1801 as there are only 1801 sequences for COI. We will take 25% of the sample to be the validation dataset. This will separate from our training dataset.
+# .25*1801
+# #We will take 450 samples from each data set which will be used as our validation dataset later on. To make our script reproducible we will be setting seed.
+# set.seed(221)
+# Muridae_Validation <- Muridae_all %>%group_by(Code) %>% sample_n(450)
+# #Checking sample size for each marker is same
+# table(Muridae_Validation$Code)
+# 
+# ###Creating Training data set
+# #Picking data that is not part of the validating dataset
+# set.seed(192)
+# Muridae_Training<- Muridae_all %>% filter (!Title %in% Muridae_Validation) %>% group_by(Code) %>% sample_n(1351)
+# #ensuring we have 1351 samples of each for our training dataset
+# table(Muridae_Training$Code)
+# 
+# #checking column numbers and names to determine which columns will be used in the next part of the code
+# names(Muridae_Training)
+
+# To make our script reproducible we will be setting seed.
 set.seed(221)
-Muridae_Validation <- Muridae_all %>%group_by(Code) %>% sample_n(450)
+#The maximum sample size is 1801 as there are only 1801 sequences for COI. We will take 25% of the sample to be the validation dataset. This will separate from our training dataset.
+strees_Validatiion <- sum(Muridae_all$Code =="COI", TRUE)*.25 
+#We will take 450 samples from each data set which will be used as our validation dataset later on. 
+
+#The rest of the samples go into training set.
+strees_Training <- sum(Muridae_all$Code =="COI", TRUE)*.75
+
+Muridae_Validation <- Muridae_all %>%group_by(Code) %>% sample_n(strees_Validatiion)
 #Checking sample size for each marker is same
 table(Muridae_Validation$Code)
 
 ###Creating Training data set
 #Picking data that is not part of the validating dataset
 set.seed(192)
-Muridae_Training<- Muridae_all %>% filter (!Title %in% Muridae_Validation) %>% group_by(Code) %>% sample_n(1351)
+Muridae_Training<- Muridae_all %>% filter (!Title %in% Muridae_Validation) %>% group_by(Code) %>% sample_n(strees_Training)
 #ensuring we have 1351 samples of each for our training dataset
 table(Muridae_Training$Code)
-
-#checking column numbers and names to determine which columns will be used in the next part of the code
-names(Muridae_Training)
 
 #Building a gene classifier to separate COI and cytB genes using A, T, G proportions, followed by more complex k-mers if needed
 random_classifier <- randomForest::randomForest(x = Muridae_Training[, 9:11], y = as.factor(Muridae_Training$Code), ntree = 50, importance = TRUE)
@@ -300,11 +347,11 @@ random_classifier_2$votes
 table(observed = Muridae_Validation$Code, predicted = predictValidation)
 #Our classifer works well with unseen data as well
 
-##Adding error values to be used later 
-random_error<-0.0007
-random_error_1<-0.0007
-random_error_2<-0
-
+# ##Adding error values to be used later 
+# random_error<-0.0007
+# random_error_1<-0.0007
+# random_error_2<-0
+# 
 
 ##Next we will try a different classifier known as Naive Bayes classifer to see if COI and cytB can be distinguished. Creating classifier with ATG proportions as training
 Bayes_Classifier<-naive_bayes(x = Muridae_Training[, 9:11], y = as.factor(Muridae_Training$Code))
@@ -319,6 +366,11 @@ Bayes_predict<- predict(Bayes_Classifier, Muridae_Training, type='prob')
 Bayes_train<-predict(Bayes_Classifier, Muridae_Training)
 (tab1<-table(Bayes_train, Muridae_Training$Code))
 #there were 1333 correct predictions for COI and 1351 for cytB
+
+#Statistical tests and CM of single nucleotide training set 
+cm1 <- confusionMatrix(Bayes_train, as.factor(Muridae_Training$Code))
+cm1
+
 #Confusion matrix-test data
 Bayes_test<-predict(Bayes_Classifier, Muridae_Validation)
 (tab2<-table(Bayes_test, Muridae_Validation$Code))
@@ -347,7 +399,6 @@ Bayes_test_1<-predict(Bayes_Classifier_1, Muridae_Validation)
 Bayes_error_1<-1-sum(diag(tab_1_1))/sum(tab_1_1)
 
 
-
 #Trying to see if the classifier can be made more accurate by incorporating k-mers of length 3
 Bayes_Classifier_2<-naive_bayes(x = Muridae_Training[, 28:91], y = as.factor(Muridae_Training$Code))
 Bayes_Classifier_2
@@ -360,6 +411,11 @@ head(cbind(Bayes_predict_2, Muridae_Training))
 Bayes_train_2<-predict(Bayes_Classifier_2, Muridae_Training)
 (tab_1_2<-table(Bayes_train_2, Muridae_Training$Code))
 #there were 1351 correct predictions for COI and 1351 for cytB
+
+#Statistical tests and CM of trinucleotide training set 
+cm2 <- confusionMatrix(Bayes_train_2, as.factor(Muridae_Training$Code))
+cm2
+
 #Confusion matrix-test data
 Bayes_test_2<-predict(Bayes_Classifier_2, Muridae_Validation)
 (tab2_2<-table(Bayes_test_2, Muridae_Validation$Code))
@@ -368,28 +424,44 @@ Bayes_test_2<-predict(Bayes_Classifier_2, Muridae_Validation)
 (Bayes_error_2<-1-sum(diag(tab_1_2))/sum(tab_1_2))
 #This led to perfect classification as that seen in random forest classifier
 
+# ##plotting accuracy rates of each classifier from random forest as well as Naive Bayes. Random forest classifiers with increased number of trees(500) were omitted as they had similar error rates or higher to those with 50 trees
+# error_rates<-rbind(Bayes_error, Bayes_error_1, Bayes_error_2, random_error, random_error_1, random_error_2)
+# #convert to dataframe
+# error_rates<-as.data.frame(error_rates)
+# #convert classfier name so it is considered a column and not individual rows
+# error_rates <-  error_rates %>% 
+#   rownames_to_column('classifier_name')
+# #Viewing to see if it worked
+# error_rates
+# #replacing column name to error in data frame
+# colnames(error_rates)<-c("classifier_names", "error")
+# #Viewing to see if it worked
+# error_rates
+# #Creating a barplot for accuracy of each classifier created
+# bar_plot<-ggplot(error_rates, aes(x=classifier_names, y=error, title="Error frequency in classfiers")) +
+#   geom_bar(stat="identity")+theme_minimal()
+
+# #Creating a barplot for accuracy of each classifier created
+# theme_update(plot.title = element_text(hjust = 0.5))
+# bar_plot<-ggplot(error_rates, aes(x=classifier_names, y=error)) + ggtitle("Error frequency in classfiers") + theme(plot.title = element_text(hjust = 0.5))  + geom_bar(stat="identity") +theme_minimal()
+# bar_plot
+
+
 ##plotting accuracy rates of each classifier from random forest as well as Naive Bayes. Random forest classifiers with increased number of trees(500) were omitted as they had similar error rates or higher to those with 50 trees
-error_rates<-rbind(Bayes_error, Bayes_error_1, Bayes_error_2, random_error, random_error_1, random_error_2)
-#convert to dataframe
-error_rates<-as.data.frame(error_rates)
-#convert classfier name so it is considered a column and not individual rows
-error_rates <-  error_rates %>% 
+error_rates<-rbind(Bayes_error, Bayes_error_1, Bayes_error_2)
+rownames(error_rates) <- c("singlenucleotide", "dinucleotide", "trinucleotide")
+error_rates<-as.data.frame(error_rates) 
+error_rates <- error_rates %>% 
   rownames_to_column('classifier_name')
+colnames(error_rates) <- c('dataset', 'error_rates')
+
 #Viewing to see if it worked
 error_rates
-#replacing column name to error in data frame
-colnames(error_rates)<-c("classifier_names", "error")
-#Viewing to see if it worked
-error_rates
-#Creating a barplot for accuracy of each classifier created
-bar_plot<-ggplot(error_rates, aes(x=classifier_names, y=error, title="Error frequency in classfiers")) +
-  geom_bar(stat="identity")+theme_minimal()
 
 #Creating a barplot for accuracy of each classifier created
 theme_update(plot.title = element_text(hjust = 0.5))
-bar_plot<-ggplot(error_rates, aes(x=classifier_names, y=error)) + ggtitle("Error frequency in classfiers") + theme(plot.title = element_text(hjust = 0.5))  + geom_bar(stat="identity") +theme_minimal()
+bar_plot<-ggplot(error_rates, aes(x= reorder(dataset, -error_rates), y=error_rates)) + ggtitle("Error frequency in three data sets")+ xlab("Data Set")+ ylab("Error Rate") + theme(plot.title = element_text(hjust = 0.5))  + geom_bar(stat="identity", color='blue', fill='red') +theme_minimal()
 bar_plot
-
 
 ###Results and Discussion:
 #Our study was intended to investigate whether Random Forest or Naive Bayes classifier would be better at predicting COI and cytB within the Muridae family. We predicted that Random forest would be able to classify COI and cytB genes far more efficiently and accurately based on our literature search. In one example from Lemons et al., 2020, the random forest classifier was outperformed Naive Bayes and had an accuracy of 97.82% when diagnosing breast cancer. From our results we can see that using both classifiers, Random Forest and Naive Bayes were not able to accurately classify all COI and cytB sequences from AGT proportions alone within the Muridae family. In Random Forest the first classifier generated had an error rate of 0.07, and although negligible we wanted to see if it could be classified more accurately. We decided to increase the number of trees to 500, however, the error rate remained at 0.07%. Next k-mers of length 2 were used for our training dataset however the error rate remained at 0.07%, increasing the number of trees to 500 did not help with accuracy, so we used k-mers of length 3. Using k-mer length of 3 we were able to classify both our training dataset as well as validation dataset accurately with 0 error rate. The error rate of each of the three classifiers can be seen in figure 3 labelled as "random_error, random_error_1 and random_error_2. This is analysis was followed up by Na?ve Bayes prediction algorithm. Naive Bayes followed a similar pattern, where AGT proportions and k-mer of length 2 were not sufficient to accurately differentiate all COI and cytB, however using k-mer of length 3 was able to differentiate both our training and validation dataset accurately. The error rate of each of these classifiers can also be seen in figure three labelled as Bayes_error, Bayes_error_1 and Bayes_error_2. Despite what is found in the literature, our results show that Random Forest and Naive Bayes performed somewhat equally as both required additional information i.e k-mer length of 3 to accurately classify all genes. However, it is noteworthy that random forest classifiers had a lower error rate for AGT and k-mer length of 2 for training sets when compared with Bayes. 
